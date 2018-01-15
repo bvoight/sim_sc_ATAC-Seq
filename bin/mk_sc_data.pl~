@@ -1,0 +1,136 @@
+#!/usr/bin/env perl 
+
+use warnings;
+
+sub string_numerically { $a cmp $b; }
+
+sub print_header {
+    my ($filehandle) = @_;
+    print $filehandle "\n";
+    print $filehandle "#----------------------------------#\n";
+    print $filehandle "# mk_sc_data.pl # v0.10 # 01.09.18 #\n";
+    print $filehandle "#----------------------------------#\n";
+    print $filehandle "#      (c) Benjamin F. Voight      #\n";
+    print $filehandle "#----------------------------------#\n";
+    print $filehandle "\n";
+}
+
+sub print_string {
+    my ($string, $out_fh, $log_fh) = @_;
+    print $out_fh "$string";
+    print $log_fh "$string";
+}
+
+sub check_file_exists {
+    my ($file, $out_fh, $log_fh) = @_;
+    my $myprint;
+
+    stat($file);
+    if ( !(-e _) ) {
+        my $myprint = "ERROR: Can't locate " . $file . ".\n";
+        print_string($myprint, $out_fh, $log_fh);
+        exit();
+    }
+}
+
+sub read_probtable {
+    my ($ref_peakfile, $ref_peakdata, $out_fh, $log_fh) = @_;
+    my ($readline, $peakid, $myprint, $npeaks);
+    my @entry;
+
+    open CHUNK, "<$ref_peakfile" or die "Can't open $ref_peakfile!\n";
+
+    #get the header
+    $readline = <CHUNK>; #header;
+    chomp($readline);
+    @entry = split '\s+', $readline;
+    if (scalar(@entry) != 4) {
+	$myprint = "Unexpected number of entries in " . $ref_peakfile . ".\n";
+        print_string($myprint, $out_fh, $log_fh);
+        exit();
+    }
+
+    #read the peaks and store as an array
+    $npeaks = 0;
+    while ($readline = <CHUNK>) {
+        chomp($readline);
+        @entry = split '\s+', $readline;
+	if (scalar(@entry) != 4) {
+	    $myprint = "Unexpected number of entries in " . $ref_peakfile . " at line $npeaks.\n";
+	    print_string($myprint, $out_fh, $log_fh);
+	    exit();
+	}
+	@{$$ref_peakdata{$entry[0]}} = ($entry[1], $entry[2], $entry[3]);	
+	#print "$ref_peakdata{$entry[0]}[0] $ref_peakdata{$entry[0]}[1] $ref_peakdata{$entry[0]}[2]\n";
+	$npeaks++;
+    }
+    close(CHUNK);
+   
+    $myprint = $npeaks . " peaks read from [ " . $ref_peakfile . " ]\n"; 
+    print_string($myprint, $out_fh, $log_fh);
+}
+
+sub mk_pedfile {
+    my ($ref_peakdata, $outfix, $num_sc, $outfh, $logfh) = @_;
+
+    
+}
+
+sub mk_famfile {
+}
+
+sub mk_bimfile {
+    my ($ref_peakdata, $outfix, $out_fh, $log_fh) = @_;
+    my ($peakid, $a, $b);
+    my $pos = 1;
+
+    open MAP, ">@{[$outfix]}.bim" or die "Can't open @{[$outfix]}.bim!\n";
+    $myprint = "Outputting generic map file to [ " . $outfix . ".bim ]\n";
+    print_string($myprint, $out_fh, $log_fh);
+
+    foreach $peakid (sort string_numerically keys %$ref_peakdata) {
+	print "here\n";
+        print MAP "1 $peakid $pos $pos 1 2\n";
+        $pos += 1;
+    }
+    close(MAP);
+}
+
+
+if (scalar(@ARGV) == 3) {
+    $num_cells = shift(@ARGV);
+    $probtable = shift(@ARGV);
+    $outfix = shift(@ARGV); 
+} else {
+    print "usage: %>mk_sc_data.pl n_cells probtable outfile\n";
+    exit();
+}
+
+#open the log file and set output handles.
+$mylog = LOG;
+$myout = STDOUT;
+open $mylog, ">@{[$outfix]}.log" or die "Error: Can't write logfile to @{[$outfix]}.log. Exiting!\n";
+
+#print the header splash.
+print_header($myout);
+print_header($mylog);
+
+$myprint = "Writing this text to log file [ " . $outfix . ".log ]\n";
+print_string($myprint, $myout, $mylog);
+
+#print start time.
+$myprint = "Analysis started:\t" . scalar(localtime) . "\n\n";
+print_string($myprint, $myout, $mylog);
+
+#Read in prob table
+check_file_exists($probtable);
+read_probtable($probtable, \%peakdata, $myout, $mylog);
+
+#create bim file
+mk_bimfile(\%peakdata, $outfix, $myout, $mylog);
+
+#create fam file
+
+#create ped file
+
+#convert ped to bed file.
