@@ -37,7 +37,7 @@ sub check_file_exists {
 }
 
 sub read_probtable {
-    my ($ref_peakfile, $ref_peakdata, $out_fh, $log_fh) = @_;
+    my ($ref_peakfile, $ref_peakdata, $ref_peaklist, $out_fh, $log_fh) = @_;
     my ($readline, $peakid, $myprint, $npeaks);
     my @entry;
 
@@ -63,13 +63,18 @@ sub read_probtable {
 	    print_string($myprint, $out_fh, $log_fh);
 	    exit();
 	}
+	
+	#store the list of peaks in the order listed in the file. 
+	push @$ref_peaklist, $entry[0];
+
 	@{$$ref_peakdata{$entry[0]}} = ($entry[1], $entry[2], $entry[3]);	
 	
-	if ( ($entry[1]+$entry[2]+$entry[3]) != 1 ) {
-	    $myprint = "Probabilities do not sum to one in " . $ref_peakfile . " at line $npeaks.\n";
-            print_string($myprint, $out_fh, $log_fh);
-            exit();
-	}
+	### should have a better check for summing to 1
+#	if ( ($entry[1]+$entry[2]+$entry[3]) != 1 ) {
+#	    $myprint = "Probabilities do not sum to one in " . $ref_peakfile . " at line $npeaks.\n";
+#            print_string($myprint, $out_fh, $log_fh);
+#            exit();
+#	}
 
 	#print "$ref_peakdata{$entry[0]}[0] $ref_peakdata{$entry[0]}[1] $ref_peakdata{$entry[0]}[2]\n";
 
@@ -82,7 +87,7 @@ sub read_probtable {
 }
 
 sub mk_mapfile {
-    my ($ref_peakdata, $outfix, $out_fh, $log_fh) = @_;
+    my ($ref_peaklist, $outfix, $out_fh, $log_fh) = @_;
     my ($peakid, $a, $b);
     my $pos = 1;
 
@@ -90,7 +95,7 @@ sub mk_mapfile {
     $myprint = "Outputting generic map file to [ " . $outfix . ".map ]\n";
     print_string($myprint, $out_fh, $log_fh);
 
-    foreach $peakid (sort numerically keys %$ref_peakdata) {
+    foreach $peakid (@$ref_peaklist) {
         print MAP "1 $peakid 0 $pos\n";
         $pos += 1;
     }
@@ -98,7 +103,7 @@ sub mk_mapfile {
 }
 
 sub print_to_pedfile {
-    my ($ref_peakdata, $ped_fh, $outfix, $id, $out_fh, $log_fh) = @_;
+    my ($ref_peakdata, $ref_peaklist, $ped_fh, $outfix, $id, $out_fh, $log_fh) = @_;
     my ($peak, $this_acc_type);
     my $this_acc_type_prob = 0; 
     my $totalprob = 0;
@@ -106,7 +111,7 @@ sub print_to_pedfile {
     #print the initial string.
     print $ped_fh "$id $id 0 0 0 0";
 
-    foreach $peak (sort {$a <=> $b} keys %$ref_peakdata) {
+    foreach $peak (@$ref_peaklist) {
 	$this_acc_type = 0;
 	$total_prob = 0;
 	$this_acc_type_prob = rand(); #determine the type.
@@ -158,6 +163,9 @@ $mylog = LOG;
 $myout = STDOUT;
 $myfam = FAM;
 $myped = PED;
+
+@mypeaklist = ();
+
 open $mylog, ">@{[$outfix]}_sc-sim.log" or die "Error: Can't write logfile to @{[$outfix]}_sc-sim.log. Exiting!\n";
 
 #print the header splash.
@@ -173,10 +181,10 @@ print_string($myprint, $myout, $mylog);
 
 #Read in prob table
 check_file_exists($probtable);
-read_probtable($probtable, \%peakdata, $myout, $mylog);
+read_probtable($probtable, \%peakdata, \@mypeaklist, $myout, $mylog);
 
 #create generic bim file
-mk_mapfile(\%peakdata, $outfix, $myout, $mylog);
+mk_mapfile(\@mypeaklist, $outfix, $myout, $mylog);
 
 ####################
 #perform simulation
@@ -196,7 +204,7 @@ for ($i=0; $i<$num_cells; $i++) {
     print_to_famfile(\%peakdata, $myfam, $outfix, $i, $myout, $mylog);
 
     #output ped file data
-    print_to_pedfile(\%peakdata, $myped, $outfix, $i, $myout, $mylog);
+    print_to_pedfile(\%peakdata, \@mypeaklist, $myped, $outfix, $i, $myout, $mylog);
 }
 
 #close file outputs.
