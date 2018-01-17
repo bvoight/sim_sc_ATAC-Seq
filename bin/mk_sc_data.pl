@@ -2,7 +2,7 @@
 
 use warnings;
 
-srand(10);
+#srand(10);
 $| = 1;
 
 sub print_header {
