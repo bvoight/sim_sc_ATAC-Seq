@@ -11,7 +11,7 @@ if (scalar(@ARGV) == 3) {
     exit();
 }
 
-for ($i=1; $i<$nsims; $i++) {
+for ($i=1; $i<=$nsims; $i++) {
     print "Running simulation $i\n";
 
     print "mkdir sim_@{[$i]}\n";
